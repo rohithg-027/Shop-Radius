@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'core/theme.dart';
 
 // Screens
+import 'screens/welcome_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/role_select_screen.dart';
 import 'screens/login_screen.dart';
@@ -12,8 +13,10 @@ import 'screens/customer_home.dart';
 import 'screens/vendor_dashboard.dart';
 import 'screens/product_list_screen.dart';
 import 'screens/product_edit_screen.dart';
+import 'screens/vendor_type_select_screen.dart';
+import 'screens/service_list_screen.dart';
+import 'screens/service_edit_screen.dart';
 import 'screens/cart_screen.dart';
-import 'screens/ai_assistant_screen.dart';
 
 class ShopRadiusApp extends StatelessWidget {
   const ShopRadiusApp({super.key});
@@ -31,21 +34,22 @@ class ShopRadiusApp extends StatelessWidget {
       // All routes
       routes: {
         '/': (_) => const SplashScreen(),
-        '/role': (_) => const RoleSelectScreen(),
+        '/welcome': (_) => const WelcomeScreen(),
+        '/role_select': (_) => const RoleSelectScreen(),
         '/login': (_) => const LoginScreen(),
         '/signup': (_) => const SignupScreen(),
 
         // Customer side
-        '/customer': (_) => const CustomerHome(),
+        '/customer_home': (_) => const CustomerHome(),
         '/cart': (_) => const CartScreen(),
 
         // Vendor side
+        '/vendor_type_select': (_) => const VendorTypeSelectScreen(),
         '/vendor': (_) => const VendorDashboard(),
-        '/products': (_) => const ProductListScreen(),
-        '/product_edit': (_) => const ProductEditScreen(),
-
-        // AI
-        '/ai': (_) => const AIAssistantScreen(),
+        '/products': (_) => ProductListScreen(),
+        '/product_edit': (_) => ProductEditScreen(),
+        '/service_list': (_) => const ServiceListScreen(),
+        '/service_edit': (_) => const ServiceEditScreen(),
       },
     );
   }

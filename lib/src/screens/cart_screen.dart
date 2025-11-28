@@ -1,53 +1,70 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax/iconsax.dart';
+import '../providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
 import '../services/api_service.dart';
-import '../providers/auth_provider.dart';
+import '../widgets/custom_button.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
+
   @override
-  Widget build(BuildContext c, WidgetRef ref) {
-    final cart = ref.watch(cartProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cartItems = ref.watch(cartProvider);
     final cartNotifier = ref.read(cartProvider.notifier);
-    final auth = ref.read(authProvider);
+    final authState = ref.watch(authProvider);
+    final user = authState.user;
+    final token = authState.token;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Cart')),
-      body: cart.isEmpty
-          ? const Center(child: Text('Cart is empty'))
-          : Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(children: [
-                Expanded(
-                  child: ListView.separated(
-                      itemCount: cart.length,
-                      separatorBuilder: (_, __) => const Divider(),
-                      itemBuilder: (_, i) {
-                        final it = cart[i];
-                        return ListTile(
-                          leading: Image.network(it.product.imageUrl, width: 56, height: 56, fit: BoxFit.cover, errorBuilder: (_,__,___)=> const Icon(Icons.image)),
-                          title: Text(it.product.name),
-                          subtitle: Text('Qty: ${it.qty}  •  ₹${(it.product.price * it.qty).toStringAsFixed(0)}'),
-                          trailing: IconButton(onPressed: () => cartNotifier.remove(it.product.id), icon: const Icon(Icons.delete)),
-                        );
-                      }),
-                ),
-                const SizedBox(height: 12),
-                Text('Total: ₹${ref.read(cartProvider.notifier).total.toStringAsFixed(0)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: () async {
-                    final items = cart.map((c) => {'product_id': c.product.id, 'qty': c.qty}).toList();
-                    final body = {'shop_id': 's1', 'customer_id': auth?.id ?? 'guest', 'items': items, 'total': ref.read(cartProvider.notifier).total, 'delivery_option': 'pickup'};
-                    final res = await apiService.createOrder(body, auth?.token ?? '');
-                    showDialog(context: c, builder: (_) => AlertDialog(title: const Text('Order Created'), content: Text('Order id: ${res['order_id']}'), actions: [TextButton(onPressed: ()=> Navigator.pop(c), child: const Text('OK'))]));
-                    ref.read(cartProvider.notifier).clear();
-                  },
-                  child: const Text('Place Order'),
-                )
-              ]),
+      appBar: AppBar(title: const Text("My Cart")),
+      body: cartItems.isEmpty
+          ? const Center(child: Text("Your cart is empty."))
+          : ListView.builder(
+              itemCount: cartItems.length,
+              itemBuilder: (context, index) {
+                final item = cartItems[index];
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage: NetworkImage(item.product.imageUrl),
+                  ),
+                  title: Text(item.product.name),
+                  subtitle: Text("Qty: ${item.qty}"),
+                  trailing: Text("₹${(item.product.price * item.qty).toStringAsFixed(0)}"),
+                );
+              },
             ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("Total:", style: Theme.of(context).textTheme.titleLarge),
+                Text("₹${cartNotifier.total.toStringAsFixed(0)}", style: Theme.of(context).textTheme.titleLarge),
+              ],
+            ),
+            const SizedBox(height: 16),
+            CustomButton(
+              text: "CHECKOUT",
+              onPressed: cartItems.isEmpty || user == null
+                  ? null
+                  : () async {
+                      final items = cartItems.map((e) => {'product_id': e.product.id, 'qty': e.qty}).toList();
+                      // Corrected lines
+                      final body = {'shop_id': 's1', 'customer_id': user.id, 'items': items, 'total': cartNotifier.total, 'delivery_option': 'pickup'};
+                      final res = await apiService.createOrder(body, token ?? '');
+                      // Handle response
+                      print(res);
+                    },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

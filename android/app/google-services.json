@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "401331434450",
+    "project_id": "shop-radius-project-2f65e",
+    "storage_bucket": "shop-radius-project-2f65e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:401331434450:android:ac6978e14068b729494e0b",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8nVQSPtDqGwjVlwCQVulVb31PXhEENrI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

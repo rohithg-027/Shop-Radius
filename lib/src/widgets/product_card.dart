@@ -1,36 +1,75 @@
 import 'package:flutter/material.dart';
 import '../models/product.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:iconsax/iconsax.dart';
 import '../providers/cart_provider.dart';
 
 class ProductCard extends ConsumerWidget {
   final Product product;
   const ProductCard({super.key, required this.product});
 
-  // convenience constructor used in earlier widget usage
-  factory ProductCard.fromModel({required Product product}) => ProductCard(product: product);
-
   @override
-  Widget build(BuildContext c, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cart = ref.read(cartProvider.notifier);
-    final inStock = product.stock > 0;
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(children: [
-        Expanded(child: product.imageUrl.isNotEmpty ? Image.network(product.imageUrl, fit: BoxFit.cover, width: double.infinity, errorBuilder: (_,__,___)=> const Icon(Icons.image)) : const Icon(Icons.image, size: 64)),
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(children: [
-            Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Row(children: [
-              Text('₹${product.price.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.w700)),
-              const Spacer(),
-              inStock ? ElevatedButton(onPressed: () => cart.add(product), child: const Icon(Icons.add_shopping_cart)) : const Chip(label: Text('Out of stock'))
-            ])
-          ]),
-        )
-      ]),
+      elevation: 1,
+      shadowColor: Colors.black.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: CachedNetworkImage(
+              imageUrl: product.imageUrl,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              placeholder: (context, url) => Center(child: CircularProgressIndicator(color: theme.primaryColor)),
+              errorWidget: (context, url, error) => Icon(Iconsax.gallery_slash, color: Colors.grey[400]),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product.name,
+                  style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  product.shop['name'] ?? 'Local Store',
+                  style: textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text("₹${product.price.toStringAsFixed(0)}", style: textTheme.titleLarge?.copyWith(color: theme.primaryColor)),
+                    SizedBox(
+                      height: 36, width: 36,
+                      child: ElevatedButton(
+                        onPressed: () => cart.add(product),
+                        style: ElevatedButton.styleFrom(padding: EdgeInsets.zero, shape: const CircleBorder()),
+                        child: const Icon(Iconsax.shopping_bag, size: 18),
+                      ),
+                    )
+                  ],
+                )
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
