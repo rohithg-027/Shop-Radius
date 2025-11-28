@@ -52,7 +52,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
       } else if (mounted && success) {
         final userRole = ref.read(userProvider)!.role;
-        final route = userRole == 'vendor' ? '/vendor' : '/customer_home';
+        final route = userRole == 'vendor' ? '/vendor' : '/customer_main';
         Navigator.pushNamedAndRemoveUntil(context, route, (route) => false);
       }
     }

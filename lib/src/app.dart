@@ -9,7 +9,7 @@ import 'screens/splash_screen.dart';
 import 'screens/role_select_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
-import 'screens/customer_home.dart';
+import 'screens/customer_main_screen.dart';
 import 'screens/vendor_dashboard.dart';
 import 'screens/product_list_screen.dart';
 import 'screens/product_edit_screen.dart';
@@ -40,8 +40,7 @@ class ShopRadiusApp extends StatelessWidget {
         '/signup': (_) => const SignupScreen(),
 
         // Customer side
-        '/customer_home': (_) => const CustomerHome(),
-        '/cart': (_) => const CartScreen(),
+        '/customer_main': (_) => const CustomerMainScreen(),
 
         // Vendor side
         '/vendor_type_select': (_) => const VendorTypeSelectScreen(),

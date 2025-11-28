@@ -3,28 +3,48 @@ import '../models/product.dart';
 
 class CartItem {
   final Product product;
-  int qty;
-  CartItem(this.product, this.qty);
+  int quantity;
+
+  CartItem({required this.product, this.quantity = 1});
+
+  double get subtotal => product.price * quantity;
 }
 
 class CartNotifier extends StateNotifier<List<CartItem>> {
   CartNotifier() : super([]);
-  void add(Product p) {
-    final idx = state.indexWhere((c) => c.product.id == p.id);
-    if (idx >= 0) {
-      final copy = [...state];
-      copy[idx].qty += 1;
-      state = copy;
-    } else {
-      state = [...state, CartItem(p, 1)];
+
+  void add(Product product) {
+    // Check if the product is already in the cart
+    for (var item in state) {
+      if (item.product.id == product.id) {
+        item.quantity++;
+        state = [...state]; // Create a new list to trigger UI update
+        return;
+      }
     }
+    // If not in cart, add as a new item
+    state = [...state, CartItem(product: product)];
   }
 
-  void remove(String id) => state = state.where((c) => c.product.id != id).toList();
+  void remove(String productId) {
+    state = state.where((item) => item.product.id != productId).toList();
+  }
 
-  void clear() => state = [];
-
-  double get total => state.fold(0.0, (t, e) => t + e.product.price * e.qty);
+  void clear() {
+    state = [];
+  }
 }
 
-final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) => CartNotifier());
+final cartProvider = StateNotifierProvider<CartNotifier, List<CartItem>>((ref) {
+  return CartNotifier();
+});
+
+// A provider to calculate the total price of the cart
+final cartTotalProvider = Provider<double>((ref) {
+  final cart = ref.watch(cartProvider);
+  double total = 0.0;
+  for (var item in cart) {
+    total += item.subtotal;
+  }
+  return total;
+});

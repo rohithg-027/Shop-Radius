@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:http/http.dart' as http;
+
 import '../providers/auth_provider.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_textfield.dart';
@@ -41,6 +43,29 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     });
   }
 
+  Future<String> _getAddressFromCoordinates(double lat, double lon) async {
+    // IMPORTANT: In a production app, add your email to the headers for the User-Agent.
+    // See Nominatim's Usage Policy: https://operations.osmfoundation.org/policies/nominatim/
+    final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon');
+    final response = await http.get(url, headers: {'User-Agent': 'ShopRadius/1.0'});
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data != null && data['address'] != null) {
+        final address = data['address'];
+        final road = address['road'] ?? '';
+        final suburb = address['suburb'] ?? '';
+        final city = address['city'] ?? address['town'] ?? address['village'] ?? '';
+        final postcode = address['postcode'] ?? '';
+
+        // Construct a readable address. You can adjust the format.
+        return '$road, $suburb, $city, $postcode'.replaceAll(RegExp(r'(, )+'), ', ').replaceAll(RegExp(r'^, |,$'), '');
+      }
+    }
+    // Fallback or error
+    return 'Could not determine address.';
+  }
+
   Future<void> _getCurrentLocation() async {
     bool serviceEnabled;
     LocationPermission permission;
@@ -67,11 +92,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     try {
       Position position = await Geolocator.getCurrentPosition();
-      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        _addressController.text = "${place.street}, ${place.locality}, ${place.postalCode}";
-      }
+      String address = await _getAddressFromCoordinates(position.latitude, position.longitude);
+      _addressController.text = address;
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to get location: $e')));
     }
@@ -103,7 +125,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             SnackBar(content: Text(error ?? "An unknown error occurred.")),
           );
       } else if (mounted && success) {
-        final route = role == 'vendor' ? '/vendor' : '/customer_home';
+        final route = role == 'vendor' ? '/vendor' : '/customer_main';
         Navigator.pushNamedAndRemoveUntil(context, route, (route) => false);
       }
     }

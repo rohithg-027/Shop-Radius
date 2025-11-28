@@ -4,9 +4,11 @@ import 'package:dio/dio.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import '../core/constants.dart';
+import '../models/category.dart';
+import '../models/vendor.dart';
 
 class ApiService {
-  static bool useMock = false; // We are now using live Firebase!
+  static bool useMock = false; // Set to false to use the live Firebase backend
 
   final _firestore = FirebaseFirestore.instance;
   final _firebaseAuth = fb_auth.FirebaseAuth.instance;
@@ -75,17 +77,27 @@ class ApiService {
         'token': 'mock-token'
       };
     }
-    // Note: Simple email login. In a real app, you might check phone numbers too.
+
+    // Find user by email first to check their role before full authentication.
+    final userQuery = await _firestore.collection('users').where('email', isEqualTo: body['identifier']).limit(1).get();
+
+    if (userQuery.docs.isEmpty) {
+      throw Exception("No user found for that email. Please check the email or sign up.");
+    }
+
+    final userDoc = userQuery.docs.first;
+    final storedRole = userDoc.data()['role'];
+    final attemptedRole = body['role'];
+
+    if (storedRole != attemptedRole) {
+      // Provide a clear error message based on the mismatch.
+      throw Exception("This is a '$storedRole' account. Please log in from the '$storedRole' portal.");
+    }
+
+    // If roles match, proceed with Firebase authentication.
     final cred = await _firebaseAuth.signInWithEmailAndPassword(email: body['identifier'], password: body['password']);
     final user = cred.user;
     if (user == null) throw Exception("Login failed: User not found.");
-
-    final userDoc = await _firestore.collection('users').doc(user.uid).get();
-    if (!userDoc.exists) {
-      // This case is rare but good to handle. It means auth user exists but no DB record.
-      await _firebaseAuth.signOut(); // Log them out to be safe
-      throw Exception("User record not found. Please sign up again.");
-    }
 
     return {'user': {...userDoc.data()!, 'id': user.uid}, 'token': await user.getIdToken()};
   }
@@ -161,6 +173,28 @@ class ApiService {
   }
 
   // ------------------ SERVICES ---------------------- //
+  Future<List<dynamic>> getCategories(String type) async {
+    if (useMock) return _mockCategories(type);
+    
+    final snapshot = await _firestore.collection('categories').where('type', isEqualTo: type).get();
+    return snapshot.docs.map((doc) => <String, dynamic>{
+      'id': doc.id,
+      ...(doc.data())
+    }).toList();
+  }
+
+  Future<List<Vendor>> getVendors() async {
+    if (useMock) return _mockVendors();
+
+    // We fetch all users with the 'vendor' role.
+    // In a large-scale app, this should be paginated or filtered by region on the backend.
+    final snapshot = await _firestore.collection('users').where('role', isEqualTo: 'vendor').get();
+    
+    return snapshot.docs.map((doc) {
+      return Vendor.fromJson(doc.id, doc.data());
+    }).toList();
+  }
+
   Future<dynamic> createService(Map<String, dynamic> body) async {
     final serviceId = body.remove('id');
     final serviceData = {
@@ -175,6 +209,16 @@ class ApiService {
       final docRef = await _firestore.collection('services').add({...serviceData, 'createdAt': FieldValue.serverTimestamp()});
       return {'id': docRef.id, ...serviceData};
     }
+  }
+
+  Future<List<dynamic>> getHotDeals() async {
+    if (useMock) return _mockProducts()..shuffle();
+
+    final snapshot = await _firestore.collection('products').where('isHotDeal', isEqualTo: true).limit(10).get();
+    return snapshot.docs.map((doc) => <String, dynamic>{
+      'id': doc.id,
+      ...(doc.data())
+    }).toList();
   }
 
   Future<String> uploadImage(File imageFile, String path) async {
@@ -218,6 +262,47 @@ class ApiService {
       };
     });
   }
+
+  List<Map<String, dynamic>> _mockCategories(String type) {
+    if (type == 'product') {
+      return [
+        {'id': '1', 'name': 'Groceries', 'image_url': 'https://images.pexels.com/photos/3769747/pexels-photo-3769747.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': '2', 'name': 'Bakery', 'image_url': 'https://images.pexels.com/photos/1721934/pexels-photo-1721934.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': '3', 'name': 'Dairy', 'image_url': 'https://images.pexels.com/photos/248412/pexels-photo-248412.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': '4', 'name': 'Fresh Meat', 'image_url': 'https://images.pexels.com/photos/65175/pexels-photo-65175.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': '5', 'name': 'Stationery', 'image_url': 'https://images.pexels.com/photos/696644/pexels-photo-696644.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': '6', 'name': 'Gift Shops', 'image_url': 'https://images.pexels.com/photos/414579/pexels-photo-414579.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': '7', 'name': 'Clothing', 'image_url': 'https://images.pexels.com/photos/102129/pexels-photo-102129.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': '8', 'name': 'Medicine', 'image_url': 'https://images.pexels.com/photos/3683041/pexels-photo-3683041.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+      ];
+    } else if (type == 'service') {
+      return [
+        {'id': 's1', 'name': 'Salon', 'image_url': 'https://images.pexels.com/photos/3998419/pexels-photo-3998419.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': 's2', 'name': 'Mechanic', 'image_url': 'https://images.pexels.com/photos/4488649/pexels-photo-4488649.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': 's3', 'name': 'Cyber Café', 'image_url': 'https://images.pexels.com/photos/1779487/pexels-photo-1779487.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': 's4', 'name': 'Laundry', 'image_url': 'https://images.pexels.com/photos/6723528/pexels-photo-6723528.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': 's5', 'name': 'Gaming', 'image_url': 'https://images.pexels.com/photos/7915228/pexels-photo-7915228.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': 's6', 'name': 'Pet Shop', 'image_url': 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': 's7', 'name': 'Home Repair', 'image_url': 'https://images.pexels.com/photos/5691533/pexels-photo-5691533.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+        {'id': 's8', 'name': 'Electrician', 'image_url': 'https://images.pexels.com/photos/5777701/pexels-photo-5777701.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'},
+      ];
+    }
+    return [];
+  }
 }
+
+List<Vendor> _mockVendors() {
+  // Hypothetical user location: Bangalore
+  // These GeoPoints can be created in Firestore for your live data.
+  final vendorsData = [
+    Vendor.fromJson('v1', {'shopName': 'Green Grocers', 'businessType': 'Grocery Store', 'location': const GeoPoint(12.9716, 77.5946)}), // ~0km away (Priority)
+    Vendor.fromJson('v2', {'shopName': 'Daily Bakes', 'businessType': 'Bakery', 'location': const GeoPoint(12.9800, 77.6000)}), // ~1.1km away (Priority)
+    Vendor.fromJson('v3', {'shopName': 'Super Electronics', 'businessType': 'Electronics', 'location': const GeoPoint(12.9500, 77.6200)}), // ~3.1km away
+    Vendor.fromJson('v4', {'shopName': 'The Book Nook', 'businessType': 'Book Store', 'location': const GeoPoint(12.9350, 77.5800)}), // ~4.4km away
+  ];
+  return vendorsData;
+}
+
+
 
 final apiService = ApiService();
