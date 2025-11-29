@@ -28,7 +28,11 @@ class VendorOrdersScreen extends ConsumerWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
                   title: Text("Order #${order.id.substring(0, 6)}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("From: ${order.customerName ?? 'Customer'}\n${DateFormat.yMMMd().add_jm().format(order.createdAt.toDate())}"),
+                  subtitle: Text(
+                    order.orderType == 'service'
+                        ? "Service Booking from: ${order.customerName ?? 'Customer'}"
+                        : "Product Order from: ${order.customerName ?? 'Customer'}\n${DateFormat.yMMMd().add_jm().format(order.createdAt.toDate())}",
+                  ),
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -51,11 +55,13 @@ class VendorOrdersScreen extends ConsumerWidget {
   }
 
   void _showUpdateStatusDialog(BuildContext context, WidgetRef ref, Order order) {
-    final possibleStatuses = ['Pending', 'Accepted', 'Preparing', 'Out for Delivery', 'Completed', 'Cancelled'];
+    final possibleStatuses = order.orderType == 'service'
+        ? ['Booking Pending', 'Booking Confirmed', 'Completed', 'Cancelled']
+        : ['Pending', 'Accepted', 'Preparing', 'Out for Delivery', 'Completed', 'Cancelled'];
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Update Order Status"),
+        title: const Text("Update Order Status"),
         content: DropdownButtonFormField<String>(
           value: order.status,
           items: possibleStatuses.map((status) => DropdownMenuItem(value: status, child: Text(status))).toList(),

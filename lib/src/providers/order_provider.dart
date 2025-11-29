@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/order.dart';
 import '../services/api_service.dart';
+import '../models/service.dart';
 import 'auth_provider.dart';
 import 'cart_provider.dart';
 
@@ -10,7 +11,8 @@ class OrderNotifier extends StateNotifier<AsyncValue<void>> {
   final Ref ref;
 
   Future<void> placeOrder({
-    required String deliveryOption,
+    required String paymentMethod,
+    String? deliveryOption, // Add deliveryOption
     String? deliveryAddress,
   }) async {
     state = const AsyncLoading();
@@ -27,10 +29,22 @@ class OrderNotifier extends StateNotifier<AsyncValue<void>> {
           cartItems: cartItems,
           totalAmount: totalAmount,
           vendorId: vendorId,
-          deliveryOption: deliveryOption,
+          paymentMethod: paymentMethod,
+          deliveryOption: deliveryOption ?? 'Shop Pickup', // Pass to API
           deliveryAddress: deliveryAddress);
 
       ref.read(cartProvider.notifier).clear(); // Clear cart on success
+      state = const AsyncData(null);
+    } catch (e, stack) {
+      state = AsyncError(e, stack);
+    }
+  }
+
+  Future<void> bookService(Service service) async {
+    state = const AsyncLoading();
+    try {
+      await apiService.createServiceBooking(service: service);
+      ref.invalidate(customerOrdersProvider); // Refresh the customer's order list
       state = const AsyncData(null);
     } catch (e, stack) {
       state = AsyncError(e, stack);

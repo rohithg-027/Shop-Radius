@@ -237,11 +237,36 @@ class ApiService {
     await _firestore.collection('orders').doc(orderId).update({'status': status});
   }
 
+  Future<void> createServiceBooking({
+    required Service service,
+  }) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) throw Exception("You must be logged in to book a service.");
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+    final orderData = {
+      'orderType': 'service', // Differentiate from product orders
+      'customerId': user.uid,
+      'customerName': userDoc.data()?['name'],
+      'vendorId': service.vendorId,
+      'shopName': service.shop['name'], // Embed shop name
+      'totalAmount': service.price,
+      'status': 'Booking Pending', // Initial status for bookings
+      'createdAt': FieldValue.serverTimestamp(),
+      'items': [ // Store service details in the items array for consistency
+        {'id': service.id, 'name': service.name, 'price': service.price, 'description': service.description}
+      ],
+    };
+    await _firestore.collection('orders').add(orderData);
+  }
+
   // This is the method that should be called from the OrderNotifier
   Future<void> placeOrderFromCart({
     required List<CartItem> cartItems,
     required double totalAmount,
     required String vendorId,
+    required String paymentMethod,
     required String deliveryOption,
     String? deliveryAddress,
   }) async {
@@ -250,14 +275,19 @@ class ApiService {
 
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
 
+    final shopName = cartItems.first.product.shop['name'];
+
     final orderData = {
+      'orderType': 'product', // Differentiate from service bookings
       'customerId': user.uid,
       'customerName': userDoc.data()?['name'],
       'vendorId': vendorId,
       'totalAmount': totalAmount,
       'status': 'Pending',
       'createdAt': FieldValue.serverTimestamp(),
+      'paymentMethod': paymentMethod,
       'deliveryOption': deliveryOption,
+      'shopName': shopName,
       'deliveryAddress': deliveryAddress, // Will be null for in-store pickup
       'items': cartItems.map((item) => {
         'quantity': item.quantity,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/service.dart';
+import '../providers/order_provider.dart';
+import 'customer_main_screen.dart';
 import '../providers/service_provider.dart';
 
 class FilteredServiceListScreen extends ConsumerWidget {
@@ -43,6 +45,7 @@ class FilteredServiceListScreen extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   trailing: ElevatedButton(
+                    onPressed: () => _showBookingConfirmation(context, ref, service),
                     child: const Text("Book Now"),
                   ),
                 ),
@@ -54,4 +57,35 @@ class FilteredServiceListScreen extends ConsumerWidget {
     );
   }
 
+  void _showBookingConfirmation(BuildContext context, WidgetRef ref, Service service) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Confirm Booking"),
+        content: Text("You are about to book '${service.name}' for ₹${service.price.toStringAsFixed(0)}."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cancel"),
+          ),
+          FilledButton(
+            onPressed: () async {
+              try {
+                await ref.read(orderProvider.notifier).bookService(service);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Service booked successfully!")));
+                // Navigate to the orders screen
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CustomerMainScreen(initialIndex: 2)), // 2 is the index for Orders
+                  (route) => false);
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Booking failed: ${e.toString()}")));
+              }
+            },
+            child: const Text("Confirm"),
+          ),
+        ],
+      ),
+    );
+  }
 }

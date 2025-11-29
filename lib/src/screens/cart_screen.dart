@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
 import '../providers/cart_provider.dart';
+import 'checkout_screen.dart'; // Will be our new BillingScreen
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -87,7 +88,7 @@ class CartScreen extends ConsumerWidget {
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pushNamed(context, '/checkout'),
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CheckoutScreen())),
                       child: const Text('Proceed to Checkout'),
                     ),
                   ),
