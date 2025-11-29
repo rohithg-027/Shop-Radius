@@ -58,7 +58,13 @@ class ProductCard extends ConsumerWidget {
                     SizedBox(
                       height: 36, width: 36,
                       child: ElevatedButton(
-                        onPressed: () => cart.add(product),
+                        onPressed: () {
+                          cart.add(product);
+                          ScaffoldMessenger.of(context)
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(SnackBar(
+                                content: Text("${product.name} added to cart.")));
+                        },
                         style: ElevatedButton.styleFrom(padding: EdgeInsets.zero, shape: const CircleBorder()),
                         child: const Icon(Iconsax.shopping_bag, size: 18),
                       ),

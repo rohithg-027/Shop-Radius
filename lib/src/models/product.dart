@@ -20,18 +20,18 @@ class Product {
   });
 
   factory Product.fromJson(Map<String, dynamic> j) => Product(
-    id: j['id'].toString(),
+    id: (j['id'] ?? '').toString(),
     name: j['name'] ?? '',
-    price: (j['price'] ?? j['price_selling'] ?? 0).toDouble(),
+    price: (j['price'] ?? j['price_selling'] ?? 0.0).toDouble(),
     stock: (j['stock'] ?? 0) as int,
     isAvailable: j['is_available'] ?? true,
     imageUrl: j['image_url'] ?? '',
-    isHotDeal: j['isHotDeal'] ?? false,
+    isHotDeal: j['is_hot_deal'] ?? j['isHotDeal'] ?? false,
     shop: j['shop'] ?? {},
     category: j['category'],
     brand: j['brand'],
     size: j['size'],
     description: j['description'],
-    discount: (j['discount'] as num?)?.toDouble(),
+    discount: (j['discount'] as num?)?.toDouble() ?? 0.0,
   );
 }

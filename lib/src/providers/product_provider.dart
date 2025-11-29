@@ -11,46 +11,35 @@ final productListProvider = FutureProvider.autoDispose.family<List<Product>, Str
 });
 
 final productCategoriesProvider = FutureProvider.autoDispose<List<Category>>((ref) async {
-  // Return a static list of general product categories with online images.
-  return [
-    Category(id: '1', name: 'Groceries', imageUrl: 'https://images.pexels.com/photos/3769747/pexels-photo-3769747.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: '2', name: 'Bakery', imageUrl: 'https://images.pexels.com/photos/1721934/pexels-photo-1721934.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: '3', name: 'Dairy', imageUrl: 'https://images.pexels.com/photos/248412/pexels-photo-248412.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: '4', name: 'Fresh Meat', imageUrl: 'https://images.pexels.com/photos/65175/pexels-photo-65175.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: '5', name: 'Stationery', imageUrl: 'https://images.pexels.com/photos/696644/pexels-photo-696644.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: '6', name: 'Gift Shops', imageUrl: 'https://images.pexels.com/photos/414579/pexels-photo-414579.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: '7', name: 'Clothing', imageUrl: 'https://images.pexels.com/photos/102129/pexels-photo-102129.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: '8', name: 'Medicine', imageUrl: 'https://images.pexels.com/photos/3683041/pexels-photo-3683041.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-  ];
+  // Fetch product categories from the database via the API service.
+  // This assumes you have a getProductCategories method in your ApiService.
+  final data = await apiService.getCategories('product');
+  return data.map((e) => Category.fromJson(e as Map<String, dynamic>)).toList();
 });
 
 final serviceCategoriesProvider = FutureProvider.autoDispose<List<Category>>((ref) async {
-  // Return a static list of general service categories with online images.
-  return [
-    Category(id: 's1', name: 'Salon', imageUrl: 'https://images.pexels.com/photos/3998419/pexels-photo-3998419.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: 's2', name: 'Mechanic', imageUrl: 'https://images.pexels.com/photos/4488649/pexels-photo-4488649.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: 's3', name: 'Cyber Café', imageUrl: 'https://images.pexels.com/photos/1779487/pexels-photo-1779487.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: 's4', name: 'Laundry', imageUrl: 'https://images.pexels.com/photos/6723528/pexels-photo-6723528.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: 's5', name: 'Gaming', imageUrl: 'https://images.pexels.com/photos/7915228/pexels-photo-7915228.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: 's6', name: 'Pet Shop', imageUrl: 'https://images.pexels.com/photos/45201/kitty-cat-kitten-pet-45201.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: 's7', name: 'Home Repair', imageUrl: 'https://images.pexels.com/photos/5691533/pexels-photo-5691533.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-    Category(id: 's8', name: 'Electrician', imageUrl: 'https://images.pexels.com/photos/5777701/pexels-photo-5777701.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'),
-  ];
+  // Fetch service categories from the database via the API service.
+  final data = await apiService.getCategories('service');
+  return data.map((e) => Category.fromJson(e as Map<String, dynamic>)).toList();
 });
 
-final hotDealsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
-  final data = await apiService.getHotDeals();
+final productsByCategoryProvider = FutureProvider.autoDispose.family<List<Product>, String>((ref, categoryName) async {
+  final data = await apiService.getProducts(category: categoryName);
   return data.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
 });
 
-final nearbyVendorsProvider = FutureProvider.autoDispose<List<Vendor>>((ref) async {
-  // 1. Get user's current position
-  final position = await Geolocator.getCurrentPosition();
+// 1. New provider to fetch and cache the user's position.
+final positionProvider = FutureProvider<Position>((ref) async {
+  // This will only run once and the result will be cached.
+  return await Geolocator.getCurrentPosition();
+});
 
-  // 2. Fetch all vendors from the backend
+final nearbyVendorsProvider = FutureProvider.autoDispose<List<Vendor>>((ref) async {
+  // 2. Watch the new positionProvider to get the cached location.
+  final position = await ref.watch(positionProvider.future);
+
   final vendors = await apiService.getVendors();
 
-  // 3. Calculate distance for each vendor and sort them
   for (var vendor in vendors) {
     if (vendor.location != null) {
       vendor.distanceInKm = Geolocator.distanceBetween(
@@ -62,8 +51,71 @@ final nearbyVendorsProvider = FutureProvider.autoDispose<List<Vendor>>((ref) asy
     }
   }
 
-  // Sort by distance (closest first)
+  // Sort all vendors by distance first to find the closest ones.
   vendors.sort((a, b) => (a.distanceInKm ?? 999).compareTo(b.distanceInKm ?? 999));
 
-  return vendors;
+  // Filter the list to only include vendors within 1.5km.
+  final nearbyVendors = vendors.where((vendor) => (vendor.distanceInKm ?? 999) <= 1.5).toList();
+
+  // **Smart Fallback Logic**: If no vendors are found within 1.5km,
+  // show the 5 closest vendors instead of an empty list.
+  if (nearbyVendors.isEmpty && vendors.isNotEmpty) {
+    // Take the top 5 closest vendors from the already sorted list.
+    return vendors.take(5).toList();
+  }
+
+  return nearbyVendors;
+});
+
+// Provider to fetch all products for a general "Explore" page.
+final exploreProductsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
+  // Assumes getProducts() without parameters fetches all products.
+  final data = await apiService.getProducts();
+  return data.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
+});
+
+
+/// --- Similarity Search Providers ---
+
+// 1. Defines the state for our search screen.
+class SearchState {
+  final AsyncValue<List<Product>> results;
+  final String query;
+
+  SearchState({this.results = const AsyncValue.data([]), this.query = ''});
+
+  SearchState copyWith({AsyncValue<List<Product>>? results, String? query}) {
+    return SearchState(
+      results: results ?? this.results,
+      query: query ?? this.query,
+    );
+  }
+}
+
+// 2. StateNotifier to manage search logic.
+class SearchNotifier extends StateNotifier<SearchState> {
+  SearchNotifier() : super(SearchState());
+
+  Future<void> searchProducts(String query) async {
+    // Update state to show loading indicator and store the query.
+    state = state.copyWith(query: query, results: const AsyncValue.loading());
+
+    if (query.isEmpty) {
+      state = state.copyWith(results: const AsyncValue.data([]));
+      return;
+    }
+
+    try {
+      // This assumes you have a `searchProducts` method in your ApiService.
+      final products = await apiService.searchProducts(query);
+      state = state.copyWith(results: AsyncValue.data(products.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList()));
+    } catch (e, st) {
+      state = state.copyWith(results: AsyncValue.error(e, st));
+    }
+  }
+}
+
+// 3. Provider to expose the SearchNotifier to the UI.
+final searchNotifierProvider = StateNotifierProvider<SearchNotifier, SearchState>((ref) {
+  return SearchNotifier();
 });

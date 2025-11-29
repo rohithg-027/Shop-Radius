@@ -16,7 +16,11 @@ import 'screens/product_edit_screen.dart';
 import 'screens/vendor_type_select_screen.dart';
 import 'screens/service_list_screen.dart';
 import 'screens/service_edit_screen.dart';
+import 'screens/vendor_orders_screen.dart';
+import 'screens/search_screen.dart';
+import 'screens/customer_orders_screen.dart';
 import 'screens/cart_screen.dart';
+import 'screens/checkout_screen.dart';
 
 class ShopRadiusApp extends StatelessWidget {
   const ShopRadiusApp({super.key});
@@ -41,6 +45,10 @@ class ShopRadiusApp extends StatelessWidget {
 
         // Customer side
         '/customer_main': (_) => const CustomerMainScreen(),
+        '/search': (_) => const SearchScreen(),
+        '/customer_orders': (_) => const CustomerOrdersScreen(),
+        '/cart': (_) => const CartScreen(),
+        '/checkout': (_) => const CheckoutScreen(),
 
         // Vendor side
         '/vendor_type_select': (_) => const VendorTypeSelectScreen(),
@@ -49,6 +57,7 @@ class ShopRadiusApp extends StatelessWidget {
         '/product_edit': (_) => ProductEditScreen(),
         '/service_list': (_) => const ServiceListScreen(),
         '/service_edit': (_) => const ServiceEditScreen(),
+        '/vendor_orders': (_) => const VendorOrdersScreen(),
       },
     );
   }

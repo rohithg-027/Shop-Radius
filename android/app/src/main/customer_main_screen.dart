@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
-import 'package:flutter_application_1/src/screens/cart_screen.dart'; // Using absolute path for clarity
+import '../../../../lib/src/screens/cart_screen.dart';
 import 'customer_home_screen.dart';
-import 'profile_screen.dart';
-import 'search_screen.dart';
+import '../../../../lib/src/screens/profile_screen.dart'; // This should be a relative path
+import '../../../../lib/src/screens/search_screen.dart';
 
 class CustomerMainScreen extends StatefulWidget {
   const CustomerMainScreen({super.key});

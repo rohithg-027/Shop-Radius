@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
 import '../providers/cart_provider.dart';
+import '../providers/order_provider.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -29,20 +30,36 @@ class CartScreen extends ConsumerWidget {
                         leading: CircleAvatar(
                           backgroundImage: NetworkImage(item.product.imageUrl),
                         ),
-                        title: Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('Qty: ${item.quantity}'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '₹${item.subtotal.toStringAsFixed(0)}',
-                              style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
-                            ),
-                            IconButton(
-                              icon: Icon(Iconsax.trash, color: theme.colorScheme.error, size: 20),
-                              onPressed: () => ref.read(cartProvider.notifier).remove(item.product.id),
-                            )
-                          ],
+                        title: Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(
+                          '₹${item.subtotal.toStringAsFixed(0)}',
+                          style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold),
+                        ),
+                        trailing: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(item.quantity > 1 ? Iconsax.minus : Iconsax.trash, color: theme.colorScheme.error, size: 18),
+                                onPressed: () {
+                                  if (item.quantity > 1) {
+                                    ref.read(cartProvider.notifier).decrement(item.product.id);
+                                  } else {
+                                    ref.read(cartProvider.notifier).remove(item.product.id);
+                                  }
+                                },
+                              ),
+                              Text(item.quantity.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                              IconButton(
+                                icon: Icon(Iconsax.add, color: theme.colorScheme.primary, size: 18),
+                                onPressed: () => ref.read(cartProvider.notifier).increment(item.product.id),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -63,9 +80,7 @@ class CartScreen extends ConsumerWidget {
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        // TODO: Navigate to Checkout Screen
-                      },
+                      onPressed: () => Navigator.pushNamed(context, '/checkout'),
                       child: const Text('Proceed to Checkout'),
                     ),
                   ),

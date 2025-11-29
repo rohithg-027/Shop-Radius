@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
-import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/category.dart';
-import '../models/category_icon.dart';
+import 'filtered_service_list_screen.dart';
+import 'filtered_product_list_screen.dart';
+import 'product_detail_screen.dart';
 import '../models/product.dart';
 import '../providers/product_provider.dart';
+import '../providers/location_provider.dart';
 import '../widgets/product_card.dart';
 
 class CustomerHomeScreen extends ConsumerWidget {
@@ -26,8 +26,6 @@ class CustomerHomeScreen extends ConsumerWidget {
           const _SearchBar(),
           const SizedBox(height: 24),
           const _PromotionalBanner(),
-          const SizedBox(height: 24),
-          const _HotDealsSection(),
           const SizedBox(height: 32),
           const _NearbyStoresSection(),
           const SizedBox(height: 32),
@@ -41,103 +39,15 @@ class CustomerHomeScreen extends ConsumerWidget {
   }
 }
 
-class _Header extends StatefulWidget {
+class _Header extends ConsumerWidget {
   const _Header();
 
   @override
-  State<_Header> createState() => _HeaderState();
-}
-
-class _HeaderState extends State<_Header> {
-  String _locationMessage = "Fetching location...";
-
-  @override
-  void initState() {
-    super.initState();
-    _determinePositionAndAddress();
-  }
-
-  Future<bool?> _showLocationPermissionDialog() async {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false, // user must tap button!
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Location Permission'),
-          content: const SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('This app needs access to your location to show relevant stores and services near you.'),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Deny'),
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-            ),
-            TextButton(
-              child: const Text('Allow'),
-              onPressed: () => Navigator.of(dialogContext).pop(true), // Signal to proceed
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _determinePositionAndAddress() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      setState(() {
-        _locationMessage = "Location services are disabled.";
-      });
-      return;
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      // Show our custom dialog first
-      final didAllow = await _showLocationPermissionDialog();
-      if (didAllow != true) {
-        return; // User denied from our dialog
-      }
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        setState(() {
-          _locationMessage = "Location permissions are denied.";
-        });
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        _locationMessage = "Location permissions are denied forever.";
-      });
-      return;
-    }
-
-    try {
-      Position position = await Geolocator.getCurrentPosition();
-      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-      Placemark place = placemarks[0];
-      setState(() {
-        _locationMessage = "${place.locality}, ${place.postalCode}";
-      });
-    } catch (e) {
-      setState(() {
-        _locationMessage = "Could not get location.";
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final locationState = ref.watch(locationProvider);
+    final locationNotifier = ref.read(locationProvider.notifier);
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -150,10 +60,8 @@ class _HeaderState extends State<_Header> {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(4, 16, 4, 32),
-          child: InkWell(
-            onTap: () {
-              // TODO: Implement location change functionality. Ripple effect provides feedback.
-            },
+          child: Material(
+            color: Colors.transparent,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -164,7 +72,13 @@ class _HeaderState extends State<_Header> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _locationMessage,
+                        locationState.isLoading
+                            ? "Fetching location..."
+                            : locationState.error != null
+                                ? "Could not get location"
+                                : locationState.placemark?.street ??
+                                  locationState.placemark?.locality ??
+                                  "Location not found",
                         style: theme.textTheme.titleSmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -179,6 +93,19 @@ class _HeaderState extends State<_Header> {
                   ),
                 ),
                 const Spacer(),
+                // This button now refreshes both location and nearby vendors
+                TextButton.icon(
+                  onPressed: () {
+                    locationNotifier.fetchLocation();
+                    ref.invalidate(nearbyVendorsProvider);
+                  },
+                  icon: const Icon(Iconsax.location_tick, color: Colors.white),
+                  label: const Text("Nearby", style: TextStyle(color: Colors.white)),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                ),
                 IconButton(
                   icon: const Icon(Iconsax.notification, color: Colors.white),
                   onPressed: () {
@@ -204,7 +131,7 @@ class _SearchBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: InkWell(
         onTap: () {
-          // TODO: Navigate to a dedicated search screen. Ripple effect provides feedback.
+          Navigator.pushNamed(context, '/search');
         },
         child: AbsorbPointer(
           child: Material(
@@ -307,7 +234,15 @@ class _NearbyStoresSection extends ConsumerWidget {
                     width: 240,
                     child: InkWell(
                       onTap: () {
-                        // TODO: Navigate to Vendor Detail Screen
+                        if (vendor.businessType == 'product') {
+                          Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => FilteredProductListScreen(title: vendor.shopName ?? 'Store', provider: productListProvider(vendor.id)),
+                          ));
+                        } else {
+                          Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => FilteredServiceListScreen(title: vendor.shopName ?? 'Store', vendorId: vendor.id),
+                          ));
+                        }
                       },
                       borderRadius: BorderRadius.circular(16),
                       child: Card(
@@ -318,9 +253,14 @@ class _NearbyStoresSection extends ConsumerWidget {
                         ),
                         child: Center(
                           child: ListTile(
-                            title: Text(vendor.shopName ?? 'Local Store', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            title: Text(
+                              vendor.shopName ?? 'Local Store',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             subtitle: Text(
-                              '${vendor.businessType ?? "Store"}\n${vendor.distanceInKm?.toStringAsFixed(1)} km away',
+                              '${vendor.businessType ?? "Store"}\n${_getDistanceText(vendor.distanceInKm)}',
                             ),
                             isThreeLine: true,
                           ),
@@ -340,52 +280,15 @@ class _NearbyStoresSection extends ConsumerWidget {
   }
 }
 
-class _HotDealsSection extends ConsumerWidget {
-  const _HotDealsSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hotDealsAsync = ref.watch(hotDealsProvider);
-    return hotDealsAsync.when(
-      data: (products) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text(
-              "Hot Deals",
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 250, // Adjust height to fit ProductCard
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: products.length,
-              itemBuilder: (context, index) {
-                return SizedBox(
-                  width: 160, // Adjust width of the card
-                  child: Padding(
-                    padding: EdgeInsets.only(right: index == products.length - 1 ? 0 : 12),
-                    child: InkWell(
-                      onTap: () {
-                        // TODO: Navigate to Product Detail Screen
-                      },
-                      child: ProductCard(product: products[index]),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text('Could not load deals: $err')),
-    );
+String _getDistanceText(double? distanceInKm) {
+  if (distanceInKm == null) {
+    return 'Distance unavailable';
   }
+  if (distanceInKm <= 1.5) {
+    // If it's a priority store, emphasize that it's nearby.
+    return '${distanceInKm.toStringAsFixed(1)} km away (Nearby)';
+  }
+  return '${distanceInKm.toStringAsFixed(1)} km away';
 }
 
 class _CategoryGrid extends ConsumerWidget {
@@ -419,9 +322,12 @@ class _CategoryGrid extends ConsumerWidget {
                 final item = items[index];
                 return InkWell(
                   onTap: () {
-                    // TODO: Navigate to category-specific screen
-                    // The InkWell provides a visual ripple effect on tap.
-                    // No need for a SnackBar anymore.
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FilteredProductListScreen(title: item.name, provider: productsByCategoryProvider(item.name)),
+                      ),
+                    );
                   },
                   borderRadius: BorderRadius.circular(16),
                   child: Padding(

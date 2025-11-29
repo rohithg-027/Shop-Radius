@@ -30,6 +30,26 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     state = state.where((item) => item.product.id != productId).toList();
   }
 
+  void increment(String productId) {
+    state = [
+      for (final item in state)
+        if (item.product.id == productId)
+          CartItem(product: item.product, quantity: item.quantity + 1)
+        else
+          item,
+    ];
+  }
+
+  void decrement(String productId) {
+    state = [
+      for (final item in state)
+        if (item.product.id == productId && item.quantity > 1)
+          CartItem(product: item.product, quantity: item.quantity - 1)
+        else
+          item,
+    ];
+  }
+
   void clear() {
     state = [];
   }
