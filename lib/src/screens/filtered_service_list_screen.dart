@@ -28,15 +28,21 @@ class FilteredServiceListScreen extends ConsumerWidget {
           }
           return ListView.builder(
             itemCount: services.length,
+            padding: const EdgeInsets.all(8),
             itemBuilder: (context, index) {
               final service = services[index];
               return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: ListTile(
                   title: Text(service.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("₹${service.price.toStringAsFixed(0)}"),
+                  subtitle: Text(
+                    service.description ?? 'No description available.',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   trailing: ElevatedButton(
-                    onPressed: () => _showBookingConfirmation(context, service),
                     child: const Text("Book Now"),
                   ),
                 ),
@@ -48,23 +54,4 @@ class FilteredServiceListScreen extends ConsumerWidget {
     );
   }
 
-  void _showBookingConfirmation(BuildContext context, Service service) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Confirm Booking"),
-        content: Text("You are about to book '${service.name}'. This feature is coming soon!"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text("OK"),
-          ),
-        ],
-      ),
-    );
-  }
 }

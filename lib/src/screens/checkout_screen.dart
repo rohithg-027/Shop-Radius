@@ -110,7 +110,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           const Divider(height: 32),
           Text("Order Summary", style: theme.textTheme.titleLarge),
           const SizedBox(height: 8),
-          ...cartItems.map((item) => ListTile(
+          ...(cartItems.valueOrNull ?? []).map((item) => ListTile(
                 title: Text(item.product.name),
                 subtitle: Text('Qty: ${item.quantity}'),
                 trailing: Text('₹${item.subtotal.toStringAsFixed(0)}'),
@@ -128,7 +128,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
         child: ElevatedButton.icon(
-          onPressed: (cartItems.isEmpty || _isPlacingOrder || (_deliveryOption == 'Home Delivery' && locationState.address == null))
+          onPressed: ((cartItems.valueOrNull?.isEmpty ?? true) || _isPlacingOrder || (_deliveryOption == 'Home Delivery' && locationState.address == null))
               ? null
               : () => _placeOrder(locationState.address),
           icon: _isPlacingOrder

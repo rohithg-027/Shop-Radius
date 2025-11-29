@@ -8,6 +8,8 @@ import 'filtered_product_list_screen.dart';
 import 'product_detail_screen.dart';
 import '../models/product.dart';
 import '../providers/product_provider.dart';
+import '../models/service.dart';
+import '../providers/service_provider.dart';
 import '../providers/location_provider.dart';
 import '../widgets/product_card.dart';
 
@@ -29,9 +31,9 @@ class CustomerHomeScreen extends ConsumerWidget {
           const SizedBox(height: 32),
           const _NearbyStoresSection(),
           const SizedBox(height: 32),
-          _CategoryGrid(title: "Explore Products", provider: productCategoriesProvider),
+          _HorizontalProductList(title: "All Products", provider: exploreProductsProvider),
           const SizedBox(height: 32),
-          _CategoryGrid(title: "Discover Services", provider: serviceCategoriesProvider),
+          _HorizontalServiceList(title: "All Services", provider: exploreServicesProvider),
           const SizedBox(height: 24),
         ],
       ),
@@ -73,7 +75,7 @@ class _Header extends ConsumerWidget {
                     children: [
                       Text(
                         locationState.isLoading
-                            ? "Fetching location..."
+                            ? "location name"
                             : locationState.error != null
                                 ? "Could not get location"
                                 : locationState.placemark?.street ??
@@ -86,7 +88,9 @@ class _Header extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        "Your Location",
+                        locationState.placemark != null
+                            ? "${locationState.placemark?.locality}, ${locationState.placemark?.postalCode}"
+                            : "Your Location",
                         style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
                       ),
                     ],
@@ -282,7 +286,7 @@ class _NearbyStoresSection extends ConsumerWidget {
 
 String _getDistanceText(double? distanceInKm) {
   if (distanceInKm == null) {
-    return 'Distance unavailable';
+    return 'within 1.5 km';
   }
   if (distanceInKm <= 1.5) {
     // If it's a priority store, emphasize that it's nearby.
@@ -291,89 +295,113 @@ String _getDistanceText(double? distanceInKm) {
   return '${distanceInKm.toStringAsFixed(1)} km away';
 }
 
-class _CategoryGrid extends ConsumerWidget {
+class _HorizontalProductList extends ConsumerWidget {
   final String title;
-  final AutoDisposeFutureProvider<List<Category>> provider;
+  final AutoDisposeFutureProvider<List<Product>> provider;
 
-  const _CategoryGrid({required this.title, required this.provider});
+  const _HorizontalProductList({required this.title, required this.provider});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final categoriesAsync = ref.watch(provider);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          categoriesAsync.when(
-            data: (items) => GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4, // A more standard 4-column layout
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 0.9, // Adjusted for better button shape
-              ),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => FilteredProductListScreen(title: item.name, provider: productsByCategoryProvider(item.name)),
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 5))
-                            ],
-                          ),
-                          child: ClipOval(
-                            child: CachedNetworkImage(
-                              imageUrl: item.imageUrl,
-                              width: 60,  // Adjusted size for 4 columns
-                              height: 60,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(color: Colors.grey.shade200),
-                              errorWidget: (context, url, error) => const Icon(Iconsax.gallery_slash),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Expanded(
-                          child: Text(
-                              item.name,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text('Could not load categories: $err')),
+    final asyncData = ref.watch(provider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        asyncData.when(
+          data: (products) {
+            if (products.isEmpty) {
+              return const SizedBox(height: 100, child: Center(child: Text("No products available right now.")));
+            }
+            return SizedBox(
+              height: 250, // Adjust height to fit ProductCard
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: products.length,
+                itemBuilder: (context, index) {
+                  return SizedBox(
+                    width: 160, // Adjust width of the card
+                    child: Padding(
+                      padding: EdgeInsets.only(right: index == products.length - 1 ? 0 : 12),
+                      child: InkWell(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailScreen(product: products[index]))),
+                        child: ProductCard(product: products[index]),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+          loading: () => const SizedBox(height: 250, child: Center(child: CircularProgressIndicator())),
+          error: (err, stack) => SizedBox(height: 100, child: Center(child: Text('Could not load products: $err'))),
+        ),
+      ],
+    );
+  }
+}
+
+class _HorizontalServiceList extends ConsumerWidget {
+  final String title;
+  final AutoDisposeFutureProvider<List<dynamic>> provider;
+
+  const _HorizontalServiceList({required this.title, required this.provider});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncData = ref.watch(provider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 16),
+        asyncData.when(
+          data: (services) {
+            if (services.isEmpty) {
+              return const SizedBox(height: 80, child: Center(child: Text("No services available right now.")));
+            }
+            return SizedBox(
+              height: 80,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: services.length,
+                itemBuilder: (context, index) {
+                  final service = services[index] as Service;
+                  return SizedBox(
+                    width: 220,
+                    child: Card(
+                      clipBehavior: Clip.antiAlias,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      child: ListTile(
+                        title: Text(service.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(service.shop['name'] ?? 'Local Service', maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: Text("₹${service.price.toStringAsFixed(0)}", style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+          loading: () => const SizedBox(height: 80, child: Center(child: CircularProgressIndicator())),
+          error: (err, stack) => SizedBox(height: 80, child: Center(child: Text('Could not load services: $err'))),
+        ),
+      ],
     );
   }
 }

@@ -61,8 +61,8 @@ class _CustomerMainScreenState extends ConsumerState<CustomerMainScreen> {
           const BottomNavigationBarItem(icon: Icon(Iconsax.home_2), label: 'Home'),
           BottomNavigationBarItem(
             icon: Badge(
-              label: Text(cartItems.length.toString()),
-              isLabelVisible: cartItems.isNotEmpty,
+              label: Text(cartItems.valueOrNull?.length.toString() ?? '0'),
+              isLabelVisible: cartItems.valueOrNull?.isNotEmpty ?? false,
               child: const Icon(Iconsax.shopping_bag),
             ),
             label: 'Cart',

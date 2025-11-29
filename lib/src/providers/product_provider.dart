@@ -4,6 +4,7 @@ import '../models/product.dart';
 import '../services/api_service.dart';
 import '../models/category.dart';
 import '../models/vendor.dart';
+import '../models/service.dart';
 
 final productListProvider = FutureProvider.autoDispose.family<List<Product>, String?>((ref, vendorId) async {
   final data = await apiService.getProducts(vendorId: vendorId);
@@ -74,6 +75,12 @@ final exploreProductsProvider = FutureProvider.autoDispose<List<Product>>((ref) 
   return data.map((e) => Product.fromJson(e as Map<String, dynamic>)).toList();
 });
 
+// Provider to fetch all services for a general "Discover" section.
+final exploreServicesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  // Assumes getServices() without parameters fetches all services.
+  final data = await apiService.getServices();
+  return data.map((e) => Service.fromJson(e as Map<String, dynamic>)).toList();
+});
 
 /// --- Similarity Search Providers ---
 

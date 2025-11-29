@@ -15,12 +15,12 @@ class OrderNotifier extends StateNotifier<AsyncValue<void>> {
   }) async {
     state = const AsyncLoading();
     try {
-      final cartItems = ref.read(cartProvider);
-      if (cartItems.isEmpty) {
+      final cartItems = ref.read(cartProvider).value;
+      if (cartItems == null || cartItems.isEmpty) {
         throw Exception("Cannot place an order with an empty cart.");
       }
       // Assumption: All items in the cart are from the same vendor.
-      final vendorId = cartItems.first.product.shop['id'];
+      final vendorId = cartItems.first.product.shop['id'] as String;
       final totalAmount = ref.read(cartTotalProvider);
 
       await apiService.placeOrderFromCart(

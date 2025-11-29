@@ -7,6 +7,7 @@ import '../core/constants.dart';
 import '../models/category.dart';
 import '../models/vendor.dart';
 import '../models/order.dart';
+import '../models/product.dart';
 import '../models/service.dart';
 import '../providers/cart_provider.dart';
 
@@ -112,6 +113,15 @@ class ApiService {
     return snapshot.docs.map((doc) => <String, dynamic>{'id': doc.id, ...(doc.data() as Map<String, dynamic>? ?? {})}).toList();
   }
 
+  Future<List<Product>> getProductsByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    // Firestore 'in' queries are limited to 30 items.
+    // For a production app, you might need to batch this for larger carts.
+    final snapshot = await _firestore.collection('products').where(FieldPath.documentId, whereIn: ids).get();
+    return snapshot.docs.map((doc) => Product.fromJson({'id': doc.id, ...doc.data()})).toList();
+  }
+
+
   Future<dynamic> createProduct(Map<String, dynamic> body, String token) async {
     final productId = body.remove('id');
     final vendorId = _firebaseAuth.currentUser?.uid;
@@ -119,7 +129,7 @@ class ApiService {
 
     // Fetch vendor's details to embed in the product
     final vendorDoc = await _firestore.collection('users').doc(vendorId).get();
-    final shopName = vendorDoc.data()?['shopName'] ?? 'Local Store';
+    final shopName = vendorDoc.data()?['shopName'] ?? 'Unnamed Shop';
 
     final productData = {
       ...body,
@@ -255,6 +265,33 @@ class ApiService {
       }).toList(),
     };
     await _firestore.collection('orders').add(orderData);
+  }
+
+  // ------------------ CART ---------------------- //
+
+  Future<List<Map<String, dynamic>>> getCart(String userId) async {
+    final snapshot = await _firestore.collection('users').doc(userId).collection('cart').get();
+    return snapshot.docs.map((doc) => {'productId': doc.id, ...doc.data()}).toList();
+  }
+
+  Future<void> updateCartItem(String userId, String productId, int quantity) async {
+    final cartItemRef = _firestore.collection('users').doc(userId).collection('cart').doc(productId);
+    if (quantity > 0) {
+      await cartItemRef.set({'quantity': quantity});
+    } else {
+      await cartItemRef.delete();
+    }
+  }
+
+  Future<void> clearCart(String userId) async {
+    final snapshot = await _firestore.collection('users').doc(userId).collection('cart').get();
+    if (snapshot.docs.isEmpty) return;
+
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
   }
 }
 

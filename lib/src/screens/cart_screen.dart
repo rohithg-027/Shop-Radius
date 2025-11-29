@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
 import '../providers/cart_provider.dart';
-import '../providers/order_provider.dart';
 
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
@@ -10,22 +9,30 @@ class CartScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cartItems = ref.watch(cartProvider);
-    final cartTotal = ref.watch(cartTotalProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Cart'),
       ),
-      body: cartItems.isEmpty
-          ? const Center(child: Text('Your cart is empty.'))
-          : Column(
+      body: cartItems.when(
+        data: (items) {
+          if (items.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [Icon(Iconsax.shopping_bag, size: 60, color: Colors.grey), SizedBox(height: 16), Text('Your cart is empty.')],
+              ),
+            );
+          }
+          final cartTotal = ref.watch(cartTotalProvider);
+          return Column(
               children: [
                 Expanded(
                   child: ListView.builder(
-                    itemCount: cartItems.length,
+                    itemCount: items.length,
                     itemBuilder: (context, index) {
-                      final item = cartItems[index];
+                      final item = items[index];
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundImage: NetworkImage(item.product.imageUrl),
@@ -86,7 +93,11 @@ class CartScreen extends ConsumerWidget {
                   ),
                 ),
               ],
-            ),
+            );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Could not load cart: $err')),
+      ),
     );
   }
 }
